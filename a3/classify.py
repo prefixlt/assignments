@@ -62,7 +62,8 @@ class NaiveBayes(object):
         >>> nb.get_word_probability('spam', 'b')
         0.375
         """
-        ###TODO
+        wp = self.cp[term][label]
+        return wp
         pass
 
     def get_top_words(self, label, n):
@@ -83,7 +84,21 @@ class NaiveBayes(object):
         >>> nb.get_top_words('spam', 2)
         [(2.25, 'b'), (1.5, 'a')]
         """
-        ###TODO
+        classes = []
+        for class_ in self.classes:
+            if class_ != label:
+                classes.append(class_)
+        dict = defaultdict(lambda: 0)
+        for term in self.vocabulary:
+            sum = 0
+            for class__ in classes:
+                sum = sum + self.cp[term][class__]
+            dict[term] = self.cp[term][label] / sum
+        result = []
+        for k in dict:
+            result.append((dict[k], k))
+        result = sorted(result, key = lambda x: dict[x[1]], reverse = True)
+        return result[:n]
         pass
 
     def train(self, documents):
@@ -97,7 +112,31 @@ class NaiveBayes(object):
         Returns:
           Nothing.
         """
-        ###TODO
+        self.vocabulary, self.classes = [], []
+        self.prior = defaultdict(lambda: 0)
+        self.cp = defaultdict(lambda: defaultdict(lambda: 0))
+        for d in documents:
+            for token in d.tokens:
+                if not token in self.vocabulary:
+                    self.vocabulary.append(token)
+            if not d.label in self.classes:
+                self.classes.append(d.label)
+        for clas in self.classes:
+            tc = defaultdict(lambda: 0)
+            docC = []
+            for d in documents:
+                if d.label == clas:
+                    docC.append(d)
+            self.prior[clas] = len(docC) / len(documents)
+            textC = []
+            for d in docC:
+                textC += d.tokens
+            for term in self.vocabulary:
+                tc[term] = textC.count(term)
+            l = list(tc.values())
+            sum_ = sum(l) + len(l)
+            for term in self.vocabulary:
+                self.cp[term][clas] = (tc[term] + 1) / sum_
         pass
 
     def classify(self, documents):
@@ -107,7 +146,22 @@ class NaiveBayes(object):
         Returns:
           A list of label strings corresponding to the predictions for each document.
         """
-        ###TODO
+        result = []
+        for d in documents:
+            score = defaultdict(lambda: 0)
+            words = []
+            for term in d.tokens:
+                if not term in words:
+                    words.append(term)
+            for class_ in self.classes:
+                score[class_] = self.prior[class_]
+                for term in words:
+                    score[class_] *= self.cp[term][class_]
+            score = [math.log10(x) for x in score]
+            l = list(score.keys())
+            maxi = max(l, key = lambda x: score[x])
+            result.append(maxi)
+        return result
         pass
 
 def evaluate(predictions, documents):
@@ -123,7 +177,21 @@ def evaluate(predictions, documents):
     Returns:
       Tuple of three floats, defined above.
     """
-    ###TODO
+    num_corr = 0
+    num_ham_incorr = 0
+    num_spam_incorr = 0
+    for d in documents:
+        if predictions[0] == d.label:
+            num_corr += 1
+        elif d.label == 'ham':
+            num_ham_incorr += 1
+        else:
+            num_spam_incorr += 1
+        predictions.pop(0)
+    X = num_corr/len(predictions)
+    Y = num_ham_incorr
+    Z = num_spam_incorr
+    return (X, Y, Z)
     pass
 
 def main():
